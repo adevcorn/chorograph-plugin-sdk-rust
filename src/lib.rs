@@ -1,26 +1,49 @@
 pub mod ffi;
 
-#[no_mangle]
-pub extern "C" fn allocate(size: usize) -> *mut u8 {
-    let mut buf = vec![0u8; size];
-    let ptr = buf.as_mut_ptr();
-    std::mem::forget(buf);
-    ptr
-}
-
-#[no_mangle]
-pub extern "C" fn deallocate(ptr: *mut u8, size: usize) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        let _ = Vec::from_raw_parts(ptr, size, size);
-    }
-}
+pub use serde_json;
+pub use chorograph_plugin_macros::chorograph_plugin;
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[chorograph_plugin]
+    fn init() {}
+
+    #[chorograph_plugin]
+    fn handle_action(action_id: String, payload: serde_json::Value) {
+        assert_eq!(action_id, "test_action");
+        assert_eq!(payload["foo"], "bar");
+    }
+
+    #[chorograph_plugin]
+    fn on_workspace_change(event: serde_json::Value) {
+        assert_eq!(event["type"], "file_mod");
+    }
+
+    #[test]
+    fn test_handle_action_ffi() {
+        let action = "test_action";
+        let payload = r#"{"foo":"bar"}"#;
+        
+        unsafe {
+            __ffi_handle_action(
+                action.as_ptr(), action.len(),
+                payload.as_ptr(), payload.len()
+            );
+        }
+    }
+
+    #[test]
+    fn test_on_workspace_change_ffi() {
+        let event = r#"{"type":"file_mod"}"#;
+        
+        unsafe {
+            __ffi_on_workspace_change(
+                event.as_ptr(), event.len()
+            );
+        }
+    }
 
     #[test]
     fn test_allocate_deallocate() {
