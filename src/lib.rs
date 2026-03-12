@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod ffi;
 pub mod process;
 pub mod ui;
