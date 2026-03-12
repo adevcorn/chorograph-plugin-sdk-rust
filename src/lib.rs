@@ -1,7 +1,18 @@
 pub mod ffi;
+pub mod process;
+pub mod ui;
 
 pub use serde_json;
 pub use chorograph_plugin_macros::chorograph_plugin;
+
+#[derive(Debug)]
+pub enum PluginError {
+    HostError(i32),
+    SerializationError(String),
+    Other(String),
+}
+
+pub type Result<T> = std::result::Result<T, PluginError>;
 
 #[cfg(test)]
 mod tests {
