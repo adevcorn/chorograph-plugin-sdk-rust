@@ -2,9 +2,16 @@ use crate::{ffi, Result, PluginError};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Pipe {
+pub enum PipeType {
     Stdout = 1,
     Stderr = 2,
+}
+
+#[derive(Debug)]
+pub enum ReadResult {
+    Data(Vec<u8>),
+    EOF,
+    Empty,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,14 +29,14 @@ impl ChildProcess {
     /// Spawns a process. Returns a handle or error.
     pub fn spawn(
         cmd: &str,
-        args: &[String],
+        args: Vec<&str>,
         cwd: Option<&str>,
-        env: &HashMap<String, String>,
+        env: HashMap<String, String>,
     ) -> Result<Self> {
         let cmd_ptr = cmd.as_ptr();
         let cmd_len = cmd.len();
 
-        let args_json = serde_json::to_vec(args)
+        let args_json = serde_json::to_vec(&args)
             .map_err(|e| PluginError::SerializationError(e.to_string()))?;
         let args_ptr = args_json.as_ptr();
         let args_len = args_json.len();
@@ -40,7 +47,7 @@ impl ChildProcess {
             (std::ptr::null(), 0)
         };
 
-        let env_json = serde_json::to_vec(env)
+        let env_json = serde_json::to_vec(&env)
             .map_err(|e| PluginError::SerializationError(e.to_string()))?;
         let env_ptr = env_json.as_ptr();
         let env_len = env_json.len();
@@ -61,10 +68,8 @@ impl ChildProcess {
         }
     }
 
-    /// Reads data. Returns bytes read, 0 for EOF, -1 for Empty, -2 for Error.
-    /// Mapping to Rust: 0 -> Ok(0), -1 -> Ok(0) (if we want to return 0 for non-blocking read with no data)
-    /// Actually, let's return Result<Option<usize>> where None means would block/empty.
-    pub fn read(&self, pipe: Pipe, buf: &mut [u8]) -> Result<Option<usize>> {
+    /// Reads data into a buffer. Returns bytes read, 0 for EOF, -1 for Empty, -2 for Error.
+    pub fn read_raw(&self, pipe: PipeType, buf: &mut [u8]) -> Result<Option<usize>> {
         let res = unsafe {
             ffi::host_read(self.handle, pipe as i32, buf.as_mut_ptr(), buf.len())
         };
@@ -74,6 +79,15 @@ impl ChildProcess {
             -1 => Ok(None),
             -2 => Err(PluginError::HostError(-2)),
             other => Err(PluginError::HostError(other)),
+        }
+    }
+
+    pub fn read(&self, pipe: PipeType) -> Result<ReadResult> {
+        let mut buf = [0u8; 4096];
+        match self.read_raw(pipe, &mut buf)? {
+            Some(0) => Ok(ReadResult::EOF),
+            Some(n) => Ok(ReadResult::Data(buf[..n].to_vec())),
+            None => Ok(ReadResult::Empty),
         }
     }
 

@@ -3,6 +3,26 @@ pub mod ffi;
 pub mod process;
 pub mod ui;
 
+pub fn plugin_print(msg: &str) {
+    unsafe { ffi::print(msg.as_ptr(), msg.len()) }
+}
+
+#[macro_export]
+macro_rules! log {
+    ($($arg:tt)*) => {
+        $crate::plugin_print(&format!($($arg)*));
+    }
+}
+
+pub mod prelude {
+    pub use crate::ai::{AIProvider, ModelInfo, AIProviderRegistration};
+    pub use crate::process::{ChildProcess, PipeType, ReadResult, ProcessStatus};
+    pub use crate::ui::{AIEvent, push_ui, update_state, push_ai_event};
+    pub use crate::{Result, PluginError};
+    pub use chorograph_plugin_macros::chorograph_plugin;
+    pub use crate::log;
+}
+
 pub use serde_json;
 pub use chorograph_plugin_macros::chorograph_plugin;
 

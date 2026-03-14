@@ -21,6 +21,21 @@ pub enum AIEvent {
     Error {
         message: String,
     },
+    #[serde(rename_all = "camelCase")]
+    StreamingDelta {
+        session_id: String,
+        text: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    Reasoning {
+        session_id: String,
+        text: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    PlanGenerated {
+        session_id: String,
+        files: Vec<String>,
+    },
 }
 
 pub fn push_ui(json: &str) -> i32 {

@@ -1,4 +1,5 @@
 extern "C" {
+    pub fn print(ptr: *const u8, len: usize);
     pub fn host_spawn(cmd_ptr: *const u8, cmd_len: usize, args_ptr: *const u8, args_len: usize, cwd_ptr: *const u8, cwd_len: usize, env_ptr: *const u8, env_len: usize) -> i32;
     pub fn host_read(handle: i32, pipe: i32, buf_ptr: *mut u8, buf_len: usize) -> i32;
     pub fn host_write(handle: i32, buf_ptr: *const u8, buf_len: usize) -> i32;

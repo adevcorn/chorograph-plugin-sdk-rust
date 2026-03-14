@@ -43,8 +43,8 @@ fn generate_init_wrapper(input: &ItemFn) -> proc_macro2::TokenStream {
         #input
 
         #[no_mangle]
-        #[export_name = "init"]
-        pub unsafe extern "C" fn __ffi_init() {
+        #[export_name = "run"]
+        pub unsafe extern "C" fn __ffi_run() {
             #fn_name();
         }
     }
