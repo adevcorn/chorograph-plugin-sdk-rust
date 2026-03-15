@@ -39,12 +39,12 @@ pub enum AIEvent {
 }
 
 pub fn push_ui(json: &str) -> i32 {
-    unsafe { ffi::host_push_ui(json.as_ptr(), json.len()) }
+    unsafe { ffi::host_push_ui(json.as_ptr(), json.len() as i32) }
 }
 
 pub fn update_state<T: Serialize>(delta: &T) -> i32 {
     if let Ok(json) = serde_json::to_string(delta) {
-        unsafe { ffi::host_update_state(json.as_ptr(), json.len()) }
+        unsafe { ffi::host_update_state(json.as_ptr(), json.len() as i32) }
     } else {
         -2
     }
@@ -55,9 +55,9 @@ pub fn push_ai_event(session_id: &str, event: &AIEvent) -> i32 {
         unsafe {
             ffi::host_push_ai_event(
                 session_id.as_ptr(),
-                session_id.len(),
+                session_id.len() as i32,
                 json.as_ptr(),
-                json.len(),
+                json.len() as i32,
             )
         }
     } else {

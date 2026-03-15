@@ -4,7 +4,7 @@ pub mod process;
 pub mod ui;
 
 pub fn plugin_print(msg: &str) {
-    unsafe { ffi::print(msg.as_ptr(), msg.len()) }
+    unsafe { ffi::print(msg.as_ptr(), msg.len() as i32) }
 }
 
 #[macro_export]

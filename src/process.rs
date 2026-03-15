@@ -34,15 +34,15 @@ impl ChildProcess {
         env: HashMap<String, String>,
     ) -> Result<Self> {
         let cmd_ptr = cmd.as_ptr();
-        let cmd_len = cmd.len();
+        let cmd_len = cmd.len() as i32;
 
         let args_json = serde_json::to_vec(&args)
             .map_err(|e| PluginError::SerializationError(e.to_string()))?;
         let args_ptr = args_json.as_ptr();
-        let args_len = args_json.len();
+        let args_len = args_json.len() as i32;
 
         let (cwd_ptr, cwd_len) = if let Some(cwd) = cwd {
-            (cwd.as_ptr(), cwd.len())
+            (cwd.as_ptr(), cwd.len() as i32)
         } else {
             (std::ptr::null(), 0)
         };
@@ -50,7 +50,7 @@ impl ChildProcess {
         let env_json = serde_json::to_vec(&env)
             .map_err(|e| PluginError::SerializationError(e.to_string()))?;
         let env_ptr = env_json.as_ptr();
-        let env_len = env_json.len();
+        let env_len = env_json.len() as i32;
 
         let handle = unsafe {
             ffi::host_spawn(
@@ -71,7 +71,7 @@ impl ChildProcess {
     /// Reads data into a buffer. Returns bytes read, 0 for EOF, -1 for Empty, -2 for Error.
     pub fn read_raw(&self, pipe: PipeType, buf: &mut [u8]) -> Result<Option<usize>> {
         let res = unsafe {
-            ffi::host_read(self.handle, pipe as i32, buf.as_mut_ptr(), buf.len())
+            ffi::host_read(self.handle, pipe as i32, buf.as_mut_ptr(), buf.len() as i32)
         };
 
         match res {
@@ -94,7 +94,7 @@ impl ChildProcess {
     /// Writes to stdin.
     pub fn write(&self, data: &[u8]) -> Result<usize> {
         let res = unsafe {
-            ffi::host_write(self.handle, data.as_ptr(), data.len())
+            ffi::host_write(self.handle, data.as_ptr(), data.len() as i32)
         };
 
         if res < 0 {
@@ -107,7 +107,7 @@ impl ChildProcess {
     /// Blocks until data or timeout. Returns true for data, false for timeout.
     pub fn wait_for_data(&self, timeout_ms: u32) -> bool {
         let res = unsafe {
-            ffi::host_wait_for_data(self.handle, timeout_ms)
+            ffi::host_wait_for_data(self.handle, timeout_ms as i32)
         };
         res == 1
     }
