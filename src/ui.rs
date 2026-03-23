@@ -1,36 +1,21 @@
-use serde::{Serialize, Deserialize};
 use crate::ffi;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum AIEvent {
     #[serde(rename_all = "camelCase")]
-    AssistantReply {
-        session_id: String,
-        text: String,
-    },
+    AssistantReply { session_id: String, text: String },
     #[serde(rename_all = "camelCase")]
-    TurnCompleted {
-        session_id: String,
-    },
+    TurnCompleted { session_id: String },
     #[serde(rename_all = "camelCase")]
-    Info {
-        message: String,
-    },
+    Info { message: String },
     #[serde(rename_all = "camelCase")]
-    Error {
-        message: String,
-    },
+    Error { message: String },
     #[serde(rename_all = "camelCase")]
-    StreamingDelta {
-        session_id: String,
-        text: String,
-    },
+    StreamingDelta { session_id: String, text: String },
     #[serde(rename_all = "camelCase")]
-    Reasoning {
-        session_id: String,
-        text: String,
-    },
+    Reasoning { session_id: String, text: String },
     #[serde(rename_all = "camelCase")]
     PlanGenerated {
         session_id: String,

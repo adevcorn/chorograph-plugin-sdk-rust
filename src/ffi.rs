@@ -10,4 +10,5 @@ extern "C" {
     pub fn host_push_ui(json_ptr: *const u8, json_len: i32) -> i32;
     pub fn host_update_state(json_ptr: *const u8, json_len: i32) -> i32;
     pub fn host_push_ai_event(session_ptr: *const u8, session_len: i32, event_ptr: *const u8, event_len: i32) -> i32;
+    pub fn host_read_file(path_ptr: *const u8, path_len: i32) -> u64;
 }

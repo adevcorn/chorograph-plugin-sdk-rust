@@ -12,6 +12,7 @@ pub fn chorograph_plugin(_attr: TokenStream, item: TokenStream) -> TokenStream {
         "init" => generate_init_wrapper(&input),
         "handle_action" => generate_handle_action_wrapper(&input),
         "on_workspace_change" => generate_on_workspace_change_wrapper(&input),
+        "identify_project" => generate_identify_project_wrapper(&input),
         _ => quote! { #input },
     };
 
@@ -84,6 +85,36 @@ fn generate_on_workspace_change_wrapper(input: &ItemFn) -> proc_macro2::TokenStr
                 serde_json::from_slice(slice).unwrap_or(serde_json::Value::Null)
             };
             #fn_name(event);
+        }
+    }
+}
+
+fn generate_identify_project_wrapper(input: &ItemFn) -> proc_macro2::TokenStream {
+    let fn_name = &input.sig.ident;
+    quote! {
+        #input
+
+        #[no_mangle]
+        #[export_name = "identify_project"]
+        pub unsafe extern "C" fn __ffi_identify_project(root_ptr: *const u8, root_len: usize, files_ptr: *const u8, files_len: usize) -> u64 {
+            let root = {
+                let slice = std::slice::from_raw_parts(root_ptr, root_len);
+                String::from_utf8_lossy(slice).into_owned()
+            };
+            let files: Vec<String> = {
+                let slice = std::slice::from_raw_parts(files_ptr, files_len);
+                serde_json::from_slice(slice).unwrap_or_default()
+            };
+            
+            if let Some(profile) = #fn_name(root, files) {
+                if let Ok(json) = serde_json::to_string(&profile) {
+                    let b = json.as_bytes();
+                    let ptr = allocate(b.len());
+                    std::ptr::copy_nonoverlapping(b.as_ptr(), ptr, b.len());
+                    return ((ptr as u64) << 32) | (b.len() as u64);
+                }
+            }
+            0
         }
     }
 }
