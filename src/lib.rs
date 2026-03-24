@@ -24,6 +24,9 @@ pub struct EntryPoint {
     /// Optional description or doc comment summary
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// How this entry point was detected: "lsp" or "regex"
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detection_source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
