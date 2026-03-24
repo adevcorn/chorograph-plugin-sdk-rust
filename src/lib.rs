@@ -59,6 +59,38 @@ pub fn read_host_file(path: &str) -> Result<String> {
     }
 }
 
+/// A symbol returned by the host LSP workspace/symbol query.
+/// `kind` is the raw LSP SymbolKind integer (e.g. 12 = Function, 6 = Method).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LspSymbolInfo {
+    pub name: String,
+    pub kind: u32,
+    pub file_path: String,
+    pub line: u32,
+}
+
+/// Ask the host LSP orchestrator for all workspace symbols under `root`.
+/// Returns `Ok(vec)` — possibly empty — if the host LSP session exists,
+/// or `Err` if the session is unavailable or the call fails.
+/// Plugins should treat an empty vec as "LSP not ready; fall back to static analysis".
+pub fn workspace_symbols_from_host(root: &str) -> Result<Vec<LspSymbolInfo>> {
+    let packed = unsafe { ffi::host_workspace_symbols(root.as_ptr(), root.len() as i32) };
+    let ptr = (packed >> 32) as *mut u8;
+    let len = (packed & 0xFFFFFFFF) as usize;
+
+    if len == 0 || ptr.is_null() {
+        return Err(PluginError::Other("No LSP session available".into()));
+    }
+
+    unsafe {
+        let bytes = Vec::from_raw_parts(ptr, len, len);
+        let s =
+            String::from_utf8(bytes).map_err(|e| PluginError::SerializationError(e.to_string()))?;
+        serde_json::from_str::<Vec<LspSymbolInfo>>(&s)
+            .map_err(|e| PluginError::SerializationError(e.to_string()))
+    }
+}
+
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {
@@ -71,7 +103,10 @@ pub mod prelude {
     pub use crate::log;
     pub use crate::process::{ChildProcess, PipeType, ProcessStatus, ReadResult};
     pub use crate::ui::{push_ai_event, push_ui, update_state, AIEvent};
-    pub use crate::{read_host_file, EntryPoint, PluginError, ProjectProfile, Result};
+    pub use crate::{
+        read_host_file, workspace_symbols_from_host, EntryPoint, LspSymbolInfo, PluginError,
+        ProjectProfile, Result,
+    };
     pub use chorograph_plugin_macros::chorograph_plugin;
 }
 

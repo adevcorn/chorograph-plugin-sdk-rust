@@ -1,4 +1,4 @@
-use crate::{ffi, Result, PluginError};
+use crate::{ffi, PluginError, Result};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,17 +47,14 @@ impl ChildProcess {
             (std::ptr::null(), 0)
         };
 
-        let env_json = serde_json::to_vec(&env)
-            .map_err(|e| PluginError::SerializationError(e.to_string()))?;
+        let env_json =
+            serde_json::to_vec(&env).map_err(|e| PluginError::SerializationError(e.to_string()))?;
         let env_ptr = env_json.as_ptr();
         let env_len = env_json.len() as i32;
 
         let handle = unsafe {
             ffi::host_spawn(
-                cmd_ptr, cmd_len,
-                args_ptr, args_len,
-                cwd_ptr, cwd_len,
-                env_ptr, env_len,
+                cmd_ptr, cmd_len, args_ptr, args_len, cwd_ptr, cwd_len, env_ptr, env_len,
             )
         };
 
@@ -70,9 +67,8 @@ impl ChildProcess {
 
     /// Reads data into a buffer. Returns bytes read, 0 for EOF, -1 for Empty, -2 for Error.
     pub fn read_raw(&self, pipe: PipeType, buf: &mut [u8]) -> Result<Option<usize>> {
-        let res = unsafe {
-            ffi::host_read(self.handle, pipe as i32, buf.as_mut_ptr(), buf.len() as i32)
-        };
+        let res =
+            unsafe { ffi::host_read(self.handle, pipe as i32, buf.as_mut_ptr(), buf.len() as i32) };
 
         match res {
             r if r >= 0 => Ok(Some(r as usize)),
@@ -93,9 +89,7 @@ impl ChildProcess {
 
     /// Writes to stdin.
     pub fn write(&self, data: &[u8]) -> Result<usize> {
-        let res = unsafe {
-            ffi::host_write(self.handle, data.as_ptr(), data.len() as i32)
-        };
+        let res = unsafe { ffi::host_write(self.handle, data.as_ptr(), data.len() as i32) };
 
         if res < 0 {
             Err(PluginError::HostError(res))
@@ -106,9 +100,7 @@ impl ChildProcess {
 
     /// Blocks until data or timeout. Returns true for data, false for timeout.
     pub fn wait_for_data(&self, timeout_ms: u32) -> bool {
-        let res = unsafe {
-            ffi::host_wait_for_data(self.handle, timeout_ms as i32)
-        };
+        let res = unsafe { ffi::host_wait_for_data(self.handle, timeout_ms as i32) };
         res == 1
     }
 
