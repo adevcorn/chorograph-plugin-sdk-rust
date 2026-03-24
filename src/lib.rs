@@ -5,10 +5,34 @@ pub mod ui;
 
 use serde::{Deserialize, Serialize};
 
+/// A single interactive or callable entry point exposed by a project.
+/// For WebAPI projects these are HTTP routes; for WebApp projects these are
+/// page/action endpoints; for console/worker/native apps these are the
+/// program's main entry methods.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntryPoint {
+    /// Human-readable label, e.g. "GET /api/products" or "Main()"
+    pub label: String,
+    /// Source file path relative to the project root, e.g. "Controllers/ProductsController.cs"
+    pub path: String,
+    /// 1-based line number of the entry point definition, if known
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+    /// HTTP verb or invocation kind, e.g. "GET", "POST", "MAIN", "EXECUTE"
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub method: Option<String>,
+    /// Optional description or doc comment summary
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectProfile {
     pub category: String,
     pub tags: Vec<String>,
+    /// Entry points discovered by the plugin. Defaults to empty if not populated.
+    #[serde(default)]
+    pub entry_points: Vec<EntryPoint>,
 }
 
 pub fn plugin_print(msg: &str) {
@@ -21,12 +45,16 @@ pub fn read_host_file(path: &str) -> Result<String> {
     let len = (packed & 0xFFFFFFFF) as usize;
 
     if len == 0 || ptr.is_null() {
-        return Err(PluginError::Other(format!("Failed to read host file: {}", path)));
+        return Err(PluginError::Other(format!(
+            "Failed to read host file: {}",
+            path
+        )));
     }
 
     unsafe {
         let bytes = Vec::from_raw_parts(ptr, len, len);
-        let s = String::from_utf8(bytes).map_err(|e| PluginError::SerializationError(e.to_string()))?;
+        let s =
+            String::from_utf8(bytes).map_err(|e| PluginError::SerializationError(e.to_string()))?;
         Ok(s)
     }
 }
@@ -39,16 +67,16 @@ macro_rules! log {
 }
 
 pub mod prelude {
-    pub use crate::ai::{AIProvider, ModelInfo, AIProviderRegistration};
-    pub use crate::process::{ChildProcess, PipeType, ReadResult, ProcessStatus};
-    pub use crate::ui::{AIEvent, push_ui, update_state, push_ai_event};
-    pub use crate::{Result, PluginError, ProjectProfile, read_host_file};
-    pub use chorograph_plugin_macros::chorograph_plugin;
+    pub use crate::ai::{AIProvider, AIProviderRegistration, ModelInfo};
     pub use crate::log;
+    pub use crate::process::{ChildProcess, PipeType, ProcessStatus, ReadResult};
+    pub use crate::ui::{push_ai_event, push_ui, update_state, AIEvent};
+    pub use crate::{read_host_file, EntryPoint, PluginError, ProjectProfile, Result};
+    pub use chorograph_plugin_macros::chorograph_plugin;
 }
 
-pub use serde_json;
 pub use chorograph_plugin_macros::chorograph_plugin;
+pub use serde_json;
 
 #[derive(Debug)]
 pub enum PluginError {
@@ -81,11 +109,13 @@ mod tests {
     fn test_handle_action_ffi() {
         let action = "test_action";
         let payload = r#"{"foo":"bar"}"#;
-        
+
         unsafe {
             __ffi_handle_action(
-                action.as_ptr(), action.len(),
-                payload.as_ptr(), payload.len()
+                action.as_ptr(),
+                action.len(),
+                payload.as_ptr(),
+                payload.len(),
             );
         }
     }
@@ -93,11 +123,9 @@ mod tests {
     #[test]
     fn test_on_workspace_change_ffi() {
         let event = r#"{"type":"file_mod"}"#;
-        
+
         unsafe {
-            __ffi_on_workspace_change(
-                event.as_ptr(), event.len()
-            );
+            __ffi_on_workspace_change(event.as_ptr(), event.len());
         }
     }
 
@@ -106,19 +134,19 @@ mod tests {
         let size = 1024;
         let ptr = allocate(size);
         assert!(!ptr.is_null());
-        
+
         unsafe {
             // Write to memory to ensure it's valid
             for i in 0..size {
                 *ptr.add(i) = (i % 256) as u8;
             }
-            
+
             // Read back to verify
             for i in 0..size {
                 assert_eq!(*ptr.add(i), (i % 256) as u8);
             }
         }
-        
+
         deallocate(ptr, size);
     }
 }
