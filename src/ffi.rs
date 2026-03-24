@@ -30,4 +30,8 @@ extern "C" {
     /// of a JSON-encoded array of `LspSymbolInfo` objects allocated in guest memory.
     /// Returns 0 if no LSP session is available or the query fails.
     pub fn host_workspace_symbols(root_ptr: *const u8, root_len: i32) -> u64;
+    /// Probe whether a TCP port is listening on `host`.
+    /// The host performs a non-blocking connect attempt with a short timeout (~200 ms).
+    /// Returns 1 if the port is open (something is listening), 0 otherwise.
+    pub fn host_tcp_probe(host_ptr: *const u8, host_len: i32, port: i32) -> i32;
 }

@@ -29,6 +29,21 @@ pub struct EntryPoint {
     pub detection_source: Option<String>,
 }
 
+/// The run status of a project as determined by a plugin implementing `detect_run_status`.
+/// Returned for web-facing project types (WebAPI, WebApp) where a TCP port can be probed.
+/// Plugins that do not support run-status detection should simply not export the function.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunStatus {
+    /// Whether the project appears to be running right now.
+    pub is_running: bool,
+    /// The base URL the project is listening on, if known (e.g. "https://localhost:7001").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// The process ID, if known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pid: Option<u32>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectProfile {
     pub category: String,
@@ -94,6 +109,13 @@ pub fn workspace_symbols_from_host(root: &str) -> Result<Vec<LspSymbolInfo>> {
     }
 }
 
+/// Probe whether a TCP port is listening on `host` (e.g. "localhost").
+/// The host performs a non-blocking connect with a ~200 ms timeout.
+/// Returns `true` if the port is open, `false` otherwise.
+pub fn tcp_probe(host: &str, port: u16) -> bool {
+    unsafe { ffi::host_tcp_probe(host.as_ptr(), host.len() as i32, port as i32) == 1 }
+}
+
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {
@@ -107,8 +129,8 @@ pub mod prelude {
     pub use crate::process::{ChildProcess, PipeType, ProcessStatus, ReadResult};
     pub use crate::ui::{push_ai_event, push_ui, update_state, AIEvent};
     pub use crate::{
-        read_host_file, workspace_symbols_from_host, EntryPoint, LspSymbolInfo, PluginError,
-        ProjectProfile, Result,
+        read_host_file, tcp_probe, workspace_symbols_from_host, EntryPoint, LspSymbolInfo,
+        PluginError, ProjectProfile, Result, RunStatus,
     };
     pub use chorograph_plugin_macros::chorograph_plugin;
 }
