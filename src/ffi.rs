@@ -1,5 +1,17 @@
 extern "C" {
     pub fn print(ptr: *const u8, len: i32);
+    /// Perform an HTTP GET request from the host (bypassing the WASM network sandbox).
+    /// `url_ptr`/`url_len` — the request URL.
+    /// `headers_ptr`/`headers_len` — optional JSON object of extra request headers, or null/0.
+    /// Returns a packed u64: high 32 bits = guest pointer, low 32 bits = byte length of a
+    /// JSON-encoded `HttpResponse` object allocated in guest memory.
+    /// Returns 0 if the host cannot fulfil the request.
+    pub fn host_http_get(
+        url_ptr: *const u8,
+        url_len: i32,
+        headers_ptr: *const u8,
+        headers_len: i32,
+    ) -> u64;
     pub fn host_spawn(
         cmd_ptr: *const u8,
         cmd_len: i32,

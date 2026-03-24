@@ -29,6 +29,20 @@ pub struct EntryPoint {
     pub detection_source: Option<String>,
 }
 
+/// The live status of a single orchestrated resource (e.g. an Aspire project or container).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResourceStatus {
+    /// Resource name as declared in the orchestrator (e.g. "api", "db").
+    pub name: String,
+    /// Resource kind: "project", "container", "executable", or a raw Add* suffix.
+    pub kind: String,
+    /// Lifecycle state reported by the orchestrator: "Running", "Starting", "Stopped", "Failed", etc.
+    pub state: String,
+    /// The URL the resource is listening on, if known and running.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
 /// The run status of a project as determined by a plugin implementing `detect_run_status`.
 /// Returned for web-facing project types (WebAPI, WebApp) where a TCP port can be probed.
 /// Plugins that do not support run-status detection should simply not export the function.
@@ -42,6 +56,10 @@ pub struct RunStatus {
     /// The process ID, if known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pid: Option<u32>,
+    /// Per-resource statuses, if the orchestrator exposes them (e.g. Aspire Dashboard API).
+    /// Empty when the plugin cannot determine per-resource detail.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resources: Vec<ResourceStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +134,58 @@ pub fn tcp_probe(host: &str, port: u16) -> bool {
     unsafe { ffi::host_tcp_probe(host.as_ptr(), host.len() as i32, port as i32) == 1 }
 }
 
+/// The response returned by [`http_get`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpResponse {
+    /// HTTP status code (e.g. 200, 404, 500).
+    pub status: u16,
+    /// Response body as a UTF-8 string.
+    pub body: String,
+}
+
+/// Perform an HTTP GET request via the host network stack (bypasses the WASM sandbox).
+/// `url` — fully-qualified URL to request.
+/// `headers` — optional extra request headers as key-value pairs.
+/// Returns `Ok(HttpResponse)` on success (including non-2xx status codes).
+/// Returns `Err` if the host cannot reach the URL or the call fails entirely.
+pub fn http_get(url: &str, headers: Option<&[(&str, &str)]>) -> Result<HttpResponse> {
+    let headers_json = match headers {
+        Some(h) => {
+            let map: std::collections::HashMap<&str, &str> = h.iter().cloned().collect();
+            serde_json::to_string(&map)
+                .map_err(|e| PluginError::SerializationError(e.to_string()))?
+        }
+        None => String::new(),
+    };
+
+    let (headers_ptr, headers_len) = if headers_json.is_empty() {
+        (std::ptr::null(), 0i32)
+    } else {
+        (headers_json.as_ptr(), headers_json.len() as i32)
+    };
+
+    let packed =
+        unsafe { ffi::host_http_get(url.as_ptr(), url.len() as i32, headers_ptr, headers_len) };
+
+    let ptr = (packed >> 32) as *mut u8;
+    let len = (packed & 0xFFFF_FFFF) as usize;
+
+    if len == 0 || ptr.is_null() {
+        return Err(PluginError::Other(format!(
+            "host_http_get returned no data for url: {}",
+            url
+        )));
+    }
+
+    let json = unsafe {
+        let bytes = Vec::from_raw_parts(ptr, len, len);
+        String::from_utf8(bytes).map_err(|e| PluginError::SerializationError(e.to_string()))?
+    };
+
+    serde_json::from_str::<HttpResponse>(&json)
+        .map_err(|e| PluginError::SerializationError(e.to_string()))
+}
+
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {
@@ -129,8 +199,8 @@ pub mod prelude {
     pub use crate::process::{ChildProcess, PipeType, ProcessStatus, ReadResult};
     pub use crate::ui::{push_ai_event, push_ui, update_state, AIEvent};
     pub use crate::{
-        read_host_file, tcp_probe, workspace_symbols_from_host, EntryPoint, LspSymbolInfo,
-        PluginError, ProjectProfile, Result, RunStatus,
+        http_get, read_host_file, tcp_probe, workspace_symbols_from_host, EntryPoint, HttpResponse,
+        LspSymbolInfo, PluginError, ProjectProfile, ResourceStatus, Result, RunStatus,
     };
     pub use chorograph_plugin_macros::chorograph_plugin;
 }
