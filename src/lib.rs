@@ -186,6 +186,81 @@ pub fn http_get(url: &str, headers: Option<&[(&str, &str)]>) -> Result<HttpRespo
         .map_err(|e| PluginError::SerializationError(e.to_string()))
 }
 
+/// Perform an HTTP POST request via the host network stack (bypasses the WASM sandbox).
+/// `url` — fully-qualified URL to request.
+/// `headers` — optional extra request headers as key-value pairs.
+/// `body` — request body as a UTF-8 string (e.g. JSON).
+/// Returns `Ok(HttpResponse)` on success (including non-2xx status codes).
+/// Returns `Err` if the host cannot reach the URL or the call fails entirely.
+pub fn http_post(url: &str, headers: Option<&[(&str, &str)]>, body: &str) -> Result<HttpResponse> {
+    let headers_json = match headers {
+        Some(h) => {
+            let map: std::collections::HashMap<&str, &str> = h.iter().cloned().collect();
+            serde_json::to_string(&map)
+                .map_err(|e| PluginError::SerializationError(e.to_string()))?
+        }
+        None => String::new(),
+    };
+
+    let (headers_ptr, headers_len) = if headers_json.is_empty() {
+        (std::ptr::null(), 0i32)
+    } else {
+        (headers_json.as_ptr(), headers_json.len() as i32)
+    };
+
+    let (body_ptr, body_len) = if body.is_empty() {
+        (std::ptr::null(), 0i32)
+    } else {
+        (body.as_ptr(), body.len() as i32)
+    };
+
+    let packed = unsafe {
+        ffi::host_http_post(
+            url.as_ptr(),
+            url.len() as i32,
+            headers_ptr,
+            headers_len,
+            body_ptr,
+            body_len,
+        )
+    };
+
+    let ptr = (packed >> 32) as *mut u8;
+    let len = (packed & 0xFFFF_FFFF) as usize;
+
+    if len == 0 || ptr.is_null() {
+        return Err(PluginError::Other(format!(
+            "host_http_post returned no data for url: {}",
+            url
+        )));
+    }
+
+    let json = unsafe {
+        let bytes = Vec::from_raw_parts(ptr, len, len);
+        String::from_utf8(bytes).map_err(|e| PluginError::SerializationError(e.to_string()))?
+    };
+
+    serde_json::from_str::<HttpResponse>(&json)
+        .map_err(|e| PluginError::SerializationError(e.to_string()))
+}
+
+/// Read a single string value from the host's UserDefaults store.
+/// Returns `Some(value)` if the key exists, `None` if not set or the call fails.
+pub fn get_user_default(key: &str) -> Option<String> {
+    let packed = unsafe { ffi::host_get_user_default(key.as_ptr(), key.len() as i32) };
+    let ptr = (packed >> 32) as *mut u8;
+    let len = (packed & 0xFFFF_FFFF) as usize;
+
+    if len == 0 || ptr.is_null() {
+        return None;
+    }
+
+    unsafe {
+        let bytes = Vec::from_raw_parts(ptr, len, len);
+        String::from_utf8(bytes).ok()
+    }
+}
+
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {
@@ -197,10 +272,13 @@ pub mod prelude {
     pub use crate::ai::{AIProvider, AIProviderRegistration, ModelInfo};
     pub use crate::log;
     pub use crate::process::{ChildProcess, PipeType, ProcessStatus, ReadResult};
-    pub use crate::ui::{push_ai_event, push_ui, update_state, AIEvent};
+    pub use crate::ui::{
+        push_ai_event, push_ui, update_state, AIEvent, ChatMessage, ChatPayload, ReplyPayload,
+    };
     pub use crate::{
-        http_get, read_host_file, tcp_probe, workspace_symbols_from_host, EntryPoint, HttpResponse,
-        LspSymbolInfo, PluginError, ProjectProfile, ResourceStatus, Result, RunStatus,
+        get_user_default, http_get, http_post, read_host_file, tcp_probe,
+        workspace_symbols_from_host, EntryPoint, HttpResponse, LspSymbolInfo, PluginError,
+        ProjectProfile, ResourceStatus, Result, RunStatus,
     };
     pub use chorograph_plugin_macros::chorograph_plugin;
 }

@@ -12,6 +12,27 @@ extern "C" {
         headers_ptr: *const u8,
         headers_len: i32,
     ) -> u64;
+    /// Perform an HTTP POST request from the host (bypassing the WASM network sandbox).
+    /// `url_ptr`/`url_len` — the request URL.
+    /// `headers_ptr`/`headers_len` — optional JSON object of extra request headers, or null/0.
+    /// `body_ptr`/`body_len` — request body bytes, or null/0 for an empty body.
+    /// Returns a packed u64: high 32 bits = guest pointer, low 32 bits = byte length of a
+    /// JSON-encoded `HttpResponse` object allocated in guest memory.
+    /// Returns 0 if the host cannot fulfil the request.
+    pub fn host_http_post(
+        url_ptr: *const u8,
+        url_len: i32,
+        headers_ptr: *const u8,
+        headers_len: i32,
+        body_ptr: *const u8,
+        body_len: i32,
+    ) -> u64;
+    /// Read a single string value from the host's UserDefaults store.
+    /// `key_ptr`/`key_len` — the UserDefaults key to read.
+    /// Returns a packed u64: high 32 bits = guest pointer, low 32 bits = byte length of the
+    /// UTF-8 value string allocated in guest memory.
+    /// Returns 0 if the key is not set or the call fails.
+    pub fn host_get_user_default(key_ptr: *const u8, key_len: i32) -> u64;
     pub fn host_spawn(
         cmd_ptr: *const u8,
         cmd_len: i32,
