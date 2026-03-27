@@ -21,7 +21,43 @@ pub enum AIEvent {
         session_id: String,
         files: Vec<String>,
     },
+    /// Emitted when the AI needs a clarifying answer from the user before
+    /// continuing.  The host will surface a reply field in the UI and send
+    /// the user's answer back via the "reply" action.
+    #[serde(rename_all = "camelCase")]
+    Question { session_id: String, text: String },
+    /// A discrete tool invocation (file read, write, search, API call, …).
+    /// `name` should use the same prefixes the host recognises for colour coding:
+    ///   "READ <path>", "WRITE <path>", "SEARCH <query>", or any other string
+    ///   for a generic purple terminal icon.
+    ToolCall { name: String },
 }
+
+/// A single entry in the conversation history sent with every "chat"/"reply" action.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatMessage {
+    /// "user" or "assistant"
+    pub role: String,
+    pub text: String,
+}
+
+/// Payload for the "chat" action (initial turn or first message in a session).
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatPayload {
+    pub session_id: String,
+    /// Full message history up to and including the latest user message.
+    pub messages: Vec<ChatMessage>,
+    /// Optional AST skeletons for the files in scope.
+    #[serde(default)]
+    pub skeletons: Vec<serde_json::Value>,
+}
+
+/// Payload for the "reply" action (user answered an AI question).
+/// Structurally identical to ChatPayload — the "reply" action ID is the
+/// distinguisher so plugins can skip redundant planning steps.
+pub type ReplyPayload = ChatPayload;
 
 pub fn push_ui(json: &str) -> i32 {
     unsafe { ffi::host_push_ui(json.as_ptr(), json.len() as i32) }

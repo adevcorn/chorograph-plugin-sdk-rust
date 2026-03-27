@@ -261,6 +261,20 @@ pub fn get_user_default(key: &str) -> Option<String> {
     }
 }
 
+/// Emit a `toolCall` event so the host activity log shows a tool-use entry.
+/// `name` is the display string; use well-known prefixes for colour coding:
+/// `"READ <path>"`, `"WRITE <path>"`, `"SEARCH <query>"` — anything else gets
+/// a generic purple terminal icon.
+pub fn push_tool_call(name: &str) {
+    use ui::{push_ai_event, AIEvent};
+    push_ai_event(
+        "",
+        &AIEvent::ToolCall {
+            name: name.to_string(),
+        },
+    );
+}
+
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {
@@ -276,7 +290,7 @@ pub mod prelude {
         push_ai_event, push_ui, update_state, AIEvent, ChatMessage, ChatPayload, ReplyPayload,
     };
     pub use crate::{
-        get_user_default, http_get, http_post, read_host_file, tcp_probe,
+        get_user_default, http_get, http_post, push_tool_call, read_host_file, tcp_probe,
         workspace_symbols_from_host, EntryPoint, HttpResponse, LspSymbolInfo, PluginError,
         ProjectProfile, ResourceStatus, Result, RunStatus,
     };
