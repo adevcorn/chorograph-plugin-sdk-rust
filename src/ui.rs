@@ -31,6 +31,15 @@ pub enum AIEvent {
     ///   "READ <path>", "WRITE <path>", "SEARCH <query>", or any other string
     ///   for a generic purple terminal icon.
     ToolCall { name: String },
+    /// Emitted during the plan phase when the AI writes a file speculatively.
+    /// The host captures this into the CRDT VFS as a speculative (ghost) write
+    /// without committing to disk, so the user can approve or reject the plan.
+    #[serde(rename_all = "camelCase")]
+    CrdtWrite {
+        session_id: String,
+        path: String,
+        content: String,
+    },
 }
 
 /// A single entry in the conversation history sent with every "chat"/"reply" action.
@@ -100,5 +109,19 @@ mod tests {
         assert!(json.contains("\"type\":\"assistantReply\""));
         assert!(json.contains("\"sessionId\":\"123\""));
         assert!(json.contains("\"text\":\"hello\""));
+    }
+
+    #[test]
+    fn test_crdt_write_serialization() {
+        let event = AIEvent::CrdtWrite {
+            session_id: "sess-1".to_string(),
+            path: "/tmp/foo.rs".to_string(),
+            content: "fn main() {}".to_string(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"type\":\"crdtWrite\""));
+        assert!(json.contains("\"sessionId\":\"sess-1\""));
+        assert!(json.contains("\"path\":\"/tmp/foo.rs\""));
+        assert!(json.contains("\"content\":\"fn main() {}\""));
     }
 }
