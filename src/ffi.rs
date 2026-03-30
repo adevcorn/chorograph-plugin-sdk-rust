@@ -67,4 +67,29 @@ extern "C" {
     /// The host performs a non-blocking connect attempt with a short timeout (~200 ms).
     /// Returns 1 if the port is open (something is listening), 0 otherwise.
     pub fn host_tcp_probe(host_ptr: *const u8, host_len: i32, port: i32) -> i32;
+
+    /// Open a streaming HTTP POST connection (SSE / chunked transfer).
+    /// `url_ptr`/`url_len` — request URL.
+    /// `headers_ptr`/`headers_len` — optional JSON object of extra request headers, or null/0.
+    /// `body_ptr`/`body_len` — request body bytes, or null/0 for an empty body.
+    /// Returns a handle (>= 1) on success, or 0 on error.
+    pub fn host_sse_post(
+        url_ptr: *const u8,
+        url_len: i32,
+        headers_ptr: *const u8,
+        headers_len: i32,
+        body_ptr: *const u8,
+        body_len: i32,
+    ) -> i32;
+
+    /// Read up to `buf_len` bytes from an open SSE stream into `buf_ptr`.
+    /// Returns:
+    ///   > 0  — bytes written into buffer
+    ///     0  — no data available yet (stream still open)
+    ///    -1  — stream ended or an error occurred (or handle is invalid)
+    pub fn host_sse_read(handle: i32, buf_ptr: *mut u8, buf_len: i32) -> i32;
+
+    /// Close and release an SSE stream handle.
+    /// Returns 0 on success, -1 if the handle was not found.
+    pub fn host_sse_close(handle: i32) -> i32;
 }

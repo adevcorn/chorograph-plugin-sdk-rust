@@ -16,11 +16,6 @@ pub enum AIEvent {
     StreamingDelta { session_id: String, text: String },
     #[serde(rename_all = "camelCase")]
     Reasoning { session_id: String, text: String },
-    #[serde(rename_all = "camelCase")]
-    PlanGenerated {
-        session_id: String,
-        files: Vec<String>,
-    },
     /// Emitted when the AI needs a clarifying answer from the user before
     /// continuing.  The host will surface a reply field in the UI and send
     /// the user's answer back via the "reply" action.
