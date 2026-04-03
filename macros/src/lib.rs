@@ -13,17 +13,18 @@ pub fn chorograph_plugin(_attr: TokenStream, item: TokenStream) -> TokenStream {
         "handle_action" => generate_handle_action_wrapper(&input),
         "on_workspace_change" => generate_on_workspace_change_wrapper(&input),
         "identify_project" => generate_identify_project_wrapper(&input),
+        "detect_run_status" => generate_detect_run_status_wrapper(&input),
         _ => quote! { #input },
     };
 
-    // Generate allocate/deallocate. 
+    // Generate allocate/deallocate.
     // We'll generate them for 'init' specifically, or provide a way.
-    // If we generate them for 'init', and the user doesn't have an 'init', 
+    // If we generate them for 'init', and the user doesn't have an 'init',
     // they can use #[chorograph_plugin] on another function.
     // Let's make it so if it's NOT one of the three, it STILL generates them?
     // No, let's just generate them if it's 'init' OR if the user explicitly wants them.
     // The instructions say "generate them as standard".
-    
+
     let exports = if fn_name_str == "init" {
         generate_standard_exports()
     } else {
@@ -105,7 +106,7 @@ fn generate_identify_project_wrapper(input: &ItemFn) -> proc_macro2::TokenStream
                 let slice = std::slice::from_raw_parts(files_ptr, files_len);
                 serde_json::from_slice(slice).unwrap_or_default()
             };
-            
+
             if let Some(profile) = #fn_name(root, files) {
                 if let Ok(json) = serde_json::to_string(&profile) {
                     let b = json.as_bytes();
@@ -113,6 +114,30 @@ fn generate_identify_project_wrapper(input: &ItemFn) -> proc_macro2::TokenStream
                     std::ptr::copy_nonoverlapping(b.as_ptr(), ptr, b.len());
                     return ((ptr as u64) << 32) | (b.len() as u64);
                 }
+            }
+            0
+        }
+    }
+}
+
+fn generate_detect_run_status_wrapper(input: &ItemFn) -> proc_macro2::TokenStream {
+    let fn_name = &input.sig.ident;
+    quote! {
+        #input
+
+        #[no_mangle]
+        #[export_name = "detect_run_status"]
+        pub unsafe extern "C" fn __ffi_detect_run_status(root_ptr: *const u8, root_len: usize) -> u64 {
+            let workspace_root = {
+                let slice = std::slice::from_raw_parts(root_ptr, root_len);
+                String::from_utf8_lossy(slice).into_owned()
+            };
+            let status: chorograph_plugin_sdk_rust::RunStatus = #fn_name(workspace_root);
+            if let Ok(json) = serde_json::to_string(&status) {
+                let b = json.as_bytes();
+                let ptr = allocate(b.len());
+                std::ptr::copy_nonoverlapping(b.as_ptr(), ptr, b.len());
+                return ((ptr as u64) << 32) | (b.len() as u64);
             }
             0
         }
