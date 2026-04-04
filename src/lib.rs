@@ -1,4 +1,5 @@
 pub mod ai;
+pub mod capabilities;
 pub mod ffi;
 pub mod process;
 pub mod sse;
@@ -285,6 +286,7 @@ macro_rules! log {
 
 pub mod prelude {
     pub use crate::ai::{AIProvider, AIProviderRegistration, ModelInfo};
+    pub use crate::capabilities::{self, actions};
     pub use crate::log;
     pub use crate::process::{ChildProcess, PipeType, ProcessStatus, ReadResult};
     pub use crate::sse::{for_each_sse_line, sse_close, sse_post};
