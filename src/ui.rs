@@ -1,3 +1,10 @@
+//! Host UI and event helpers.
+//!
+//! Use these functions to:
+//! - Push a declarative SwiftUI JSON description to the plugin UI panel ([`push_ui`])
+//! - Emit AI conversation events to the Chorograph activity log ([`push_ai_event`])
+//! - Broadcast arbitrary state deltas to the plugin panel ([`update_state`])
+
 use crate::ffi;
 use serde::{Deserialize, Serialize};
 

@@ -33,6 +33,25 @@ extern "C" {
     /// UTF-8 value string allocated in guest memory.
     /// Returns 0 if the key is not set or the call fails.
     pub fn host_get_user_default(key_ptr: *const u8, key_len: i32) -> u64;
+    /// Write a string value to the host's UserDefaults store.
+    /// `key_ptr`/`key_len` — the UserDefaults key.
+    /// `val_ptr`/`val_len` — the UTF-8 value to store.
+    pub fn host_set_user_default(
+        key_ptr: *const u8,
+        key_len: i32,
+        val_ptr: *const u8,
+        val_len: i32,
+    );
+    /// Write `content_len` bytes from `content_ptr` to the file at `path`.
+    /// The path must be inside the workspace root; writes outside it are blocked by the host.
+    /// Returns 0 on success, negative on error:
+    ///   -1 invalid pointer, -2 outside workspace root, -3 mkdir failed, -4 write failed.
+    pub fn host_write_file(
+        path_ptr: *const u8,
+        path_len: i32,
+        content_ptr: *const u8,
+        content_len: i32,
+    ) -> i32;
     pub fn host_spawn(
         cmd_ptr: *const u8,
         cmd_len: i32,

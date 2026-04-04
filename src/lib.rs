@@ -263,6 +263,49 @@ pub fn get_user_default(key: &str) -> Option<String> {
     }
 }
 
+/// Write a string value to the host's UserDefaults store.
+/// The value is immediately persisted and will be visible to subsequent
+/// `get_user_default` calls (including from other plugins in the same session).
+pub fn set_user_default(key: &str, value: &str) {
+    unsafe {
+        ffi::host_set_user_default(
+            key.as_ptr(),
+            key.len() as i32,
+            value.as_ptr(),
+            value.len() as i32,
+        )
+    }
+}
+
+/// Write `content` to `path` on the host filesystem.
+///
+/// The host sandboxes this call: `path` must be inside the current workspace root
+/// (the directory opened in Chorograph). Writes outside the workspace are blocked
+/// and return `Err`.
+///
+/// Parent directories are created automatically if they do not exist.
+///
+/// # Errors
+/// Returns `Err(PluginError::HostError(code))` where `code` is:
+/// - `-2` path is outside the workspace root
+/// - `-3` failed to create parent directories
+/// - `-4` file write failed
+pub fn write_host_file(path: &str, content: &[u8]) -> Result<()> {
+    let rc = unsafe {
+        ffi::host_write_file(
+            path.as_ptr(),
+            path.len() as i32,
+            content.as_ptr(),
+            content.len() as i32,
+        )
+    };
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(PluginError::HostError(rc))
+    }
+}
+
 /// Emit a `toolCall` event so the host activity log shows a tool-use entry.
 /// `name` is the display string; use well-known prefixes for colour coding:
 /// `"READ <path>"`, `"WRITE <path>"`, `"SEARCH <query>"` — anything else gets
@@ -294,9 +337,9 @@ pub mod prelude {
         push_ai_event, push_ui, update_state, AIEvent, ChatMessage, ChatPayload, ReplyPayload,
     };
     pub use crate::{
-        get_user_default, http_get, http_post, push_tool_call, read_host_file, tcp_probe,
-        workspace_symbols_from_host, EntryPoint, HttpResponse, LspSymbolInfo, PluginError,
-        ProjectProfile, ResourceStatus, Result, RunStatus,
+        get_user_default, http_get, http_post, push_tool_call, read_host_file, set_user_default,
+        tcp_probe, workspace_symbols_from_host, write_host_file, EntryPoint, HttpResponse,
+        LspSymbolInfo, PluginError, ProjectProfile, ResourceStatus, Result, RunStatus,
     };
     pub use chorograph_plugin_macros::chorograph_plugin;
 }

@@ -1,3 +1,12 @@
+//! Host process spawning and I/O.
+//!
+//! [`ChildProcess::spawn`] launches an arbitrary subprocess on the host OS
+//! (bypassing the WASM sandbox) and returns a handle you can use to read
+//! stdout/stderr and write to stdin.
+//!
+//! The host automatically cleans up the process handle when the [`ChildProcess`]
+//! value is dropped.
+
 use crate::{ffi, PluginError, Result};
 use std::collections::HashMap;
 
